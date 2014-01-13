@@ -284,8 +284,8 @@
 			};
 
 			function placeBall() {
-				newCx = Math.floor(Math.random() * (windowWidth - r)) + r;
-				newCy = Math.floor(Math.random() * windowHeight / 3) + r;
+				newCx = Math.floor(Math.random() * (windowWidth - 2 * r)) + 2 * r;
+				newCy = Math.floor(Math.random() * windowHeight / 3) + 2 * r;
 				var distance =  getDistance(cx, cy, newCx, newCy);
 				cx = newCx;
 				cy = newCy;
@@ -303,7 +303,7 @@
 
 				/* Going to the left */
 				if(d3.event.keyCode == "37") {
-					event.preventDefault();
+					d3.event.preventDefault();
 					board.transition()
 						.ease("linear")
 						.duration(100)
@@ -312,7 +312,7 @@
 
 				/* Going to the right */
 				else if(d3.event.keyCode == "39") {
-					event.preventDefault();
+					d3.event.preventDefault();
 					board.transition()
 						.ease("linear")
 						.duration(100)
@@ -321,7 +321,7 @@
 
 				/* Replay the game */
 				else if(d3.event.keyCode == "82" && hasLost == true) {
-					event.preventDefault();
+					d3.event.preventDefault();
 					placeBall();
 
 					canvas.selectAll("text").transition()
