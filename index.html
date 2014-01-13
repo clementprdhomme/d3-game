@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>D3 tests</title>
+		<link href="http://fonts.googleapis.com/css?family=Source+Sans+Pro:900" rel="stylesheet" type="text/css">
+		<style type="text/css">* {margin: 0; padding: 0;}</style>
+	</head>
+	<body>
+		<script src="http://d3js.org/d3.v3.min.js"></script>
+		<div id="canvas"></div>
+		<script type="text/javascript">
+			function getDistance(x1, y1, x2, y2) {
+				return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2-y1, 2));
+			}
+
+			function displayInfo() {
+				canvas.append("rect")
+					.attr("class", "info")
+					.attr("x", 0)
+					.attr("y", 0)
+					.attr("width", windowWidth)
+					.attr("height", 0)
+					.attr("fill", "#e31b5e");
+
+				canvas.append("text")
+					.text("You lost !")
+					.attr("class", "big")
+					.attr("x", 30)
+					.attr("y", 0);
+
+				canvas.append("text")
+					.text(Math.round((endTime - startTime) / 1000) + "s")
+					.attr("class", "big")
+					.attr("x", windowWidth - 30)
+					.attr("y", 0)
+					.style("text-anchor", "end");
+
+				canvas.append("text")
+					.text(points + " points")
+					.attr("class", "big")
+					.attr("x", windowWidth / 2)
+					.attr("y", 0)
+					.style("text-anchor", "middle");
+
+				canvas.selectAll(".big")
+					.style("fill", "#fff")
+					.style("font-family", "'Source Sans Pro', sans-serif")
+					.style("font-size", 50)
+					.style("text-shadow", "1px 1px #75092e, -1px -1px #75092e")
+
+				d3.select(".info").transition()
+						.attr("height", 95)
+						.ease("linear")
+						.duration(100);
+
+				canvas.selectAll("text").transition()
+						.attr("y", 60)
+						.duration(300);
+
+				canvas.append("text")
+					.text("Time you played")
+					.attr("class", "little")
+					.attr("x", windowWidth - 30)
+					.style("text-anchor", "end");
+
+				if(improvedScore) {
+					improvedScore = false;
+					canvas.append("text")
+						.text("New record!")
+						.attr("class", "little")
+						.attr("x", windowWidth / 2)
+						.style("text-anchor", "middle");
+				}
+				else {
+					canvas.append("text")
+						.text("Best score: " + bestScore)
+						.attr("class", "little")
+						.attr("x", windowWidth / 2)
+						.style("text-anchor", "middle");
+				}
+
+				canvas.selectAll(".little")
+					.attr("y", 85)
+					.style("fill", "#fff")
+					.style("font-family", "'Source Sans Pro', sans-serif")
+					.style("font-size", 20)
+					.style("opacity", 0);
+
+				canvas.selectAll(".little").transition()
+					.delay(500)
+					.duration(500)
+					.ease("ease")
+					.style("opacity", 0.7);
+
+				canvas.append("text")
+					.text("Press r to restart")
+					.attr("class", "splashScreen")
+					.attr("x", windowWidth / 2)
+					.attr("y", windowHeight / 2)
+					.style("text-anchor", "middle")
+					.style("fill", "#fff")
+					.style("font-family", "'Source Sans Pro', sans-serif")
+					.style("font-size", 10)
+					.style("opacity", 0);
+
+				canvas.select(".splashScreen").transition()
+					.duration(500)
+					.ease("bounce")
+					.style("opacity", 0.4)
+					.style("font-size", 100);
+			}
+
+			function moveBall(angle) {
+				/* We check if angle is a number */
+				if(isNaN(angle)) {
+					window.alert("Wrong value in moveBall()");
+					return;
+				}
+
+				/* We check if angle is a positive number */
+				if(angle < 0) {
+					window.alert("Negative angle in moveBall()");
+					return;
+				}
+
+				angle = angle * Math.PI / 180; /* From degrees to randians */
+				var distance = 0;
+				var border = null;
+
+				/* If the direction isnt vertical or horizontal */
+				if(Math.round(angle % (Math.PI /2) * 1000) / 1000 != 0) {
+
+					/*The equation of the line which passes through the ball and whose direction is the one given by the angle
+					   is y = a * x + b = -tan(angle) * x + cx * tan(angle) + cy */
+					var a = -Math.tan(angle);
+					var b = cx * Math.tan(angle) + cy;
+
+					/* This numbers represent the points on which the ball is tangent to a side of the window */
+					var cxTop = (r - b) / a;
+					var cyTop = a * cxTop + b;
+					var cyRight = a * (windowWidth - r) + b; /* (cxRight, cyRight) is the point where the ball could be tangent */
+					var cxRight = (cyRight - b) / a;	     /*if it takes the right direction */
+					var cyLeft = a * r + b;
+					var cxLeft = (cyLeft - b) / a;
+					var cxBottom = (windowHeight - boardHeight - r - b) / a;
+					var cyBottom = a * cxBottom + b;
+
+					/* First quarter of the circle */
+					if(angle % (2 * Math.PI) < Math.PI / 2) {
+						if(getDistance(cx, cy, cxRight, cyRight) < getDistance(cx, cy, cxTop, cyTop))
+							border = "right"; /* The side the ball will hurt is the right one */
+						else
+							border = "top";
+					}
+
+					/* Second quarter of the circle */
+					else if(angle % (2 * Math.PI) < Math.PI) {
+						if(getDistance(cx, cy, cxTop, cyTop) < getDistance(cx, cy, cxLeft, cyLeft))
+							border = "top";
+						else
+							border = "left";
+					}
+
+					/* Third quarter of the circle */
+					else if(angle % (2 * Math.PI) <  3 * Math.PI / 2) {
+						if(getDistance(cx, cy, cxLeft, cyLeft) < getDistance(cx, cy, cxBottom, cyBottom))
+							border = "left";
+						else
+							border = "bottom";
+					}
+
+					/* Last quarter of the circle */
+					else {
+						if(getDistance(cx, cy, cxBottom, cyBottom) < getDistance(cx, cy, cxRight, cyRight))
+							border = "bottom";
+						else
+							border = "right";
+					}
+
+					switch(border) {
+						case "top":
+							distance = getDistance(cx, cy, cxTop, cyTop);
+							cx = cxTop;
+							cy = cyTop;
+							break;
+						case "bottom":
+							distance = getDistance(cx, cy, cxBottom, cyBottom);
+							cx = cxBottom;
+							cy = cyBottom;
+							break;
+						case "left":
+							distance = getDistance(cx, cy, cxLeft, cyLeft);
+							cx = cxLeft;
+							cy = cyLeft;
+							break;
+						case "right":
+							distance = getDistance(cx, cy, cxRight, cyRight);
+							cx = cxRight;
+							cy = cyRight;
+							break;
+					}
+				}
+
+				/* If the direction is horizontal or vertical, we start again the game */
+				else {
+					points = 0;
+					window.clearInterval(pointsInterval);
+					setTimeout(	function() {
+								startTime = new Date().getTime();
+								pointsInterval = setInterval(function() { points += 10;}, 1000);
+								moveBall(Math.random() * 360); }, 2000);
+					return;
+				}
+
+				ball.transition()
+					.duration(distance / speed)
+					.ease("linear")
+					.attr("cx", cx)
+					.attr("cy", cy)
+					.each("end", 	function() {
+								switch(border) {
+									case "top":
+										if(Math.round(Math.cos(angle) * 1000) / 1000 == 0)
+											moveBall(270);
+										else
+											moveBall(360 - angle * 180 / Math.PI);
+										break;
+
+									case "bottom":
+										/* If the user don't miss the ball */
+										if(parseFloat(board.attr("x")) <= cxBottom && parseFloat(board.attr("x")) + boardWidth >= cxBottom) {
+											points += 20;
+
+											if(Math.round(Math.cos(angle) * 1000) / 1000 == 0)
+												moveBall(90);
+											else
+												moveBall(360 - angle * 180 / Math.PI);
+										}
+										else {
+											cxBottom = (windowHeight + r - b) / a;
+											cyBottom = a * cxBottom + b;
+											distance = getDistance(cx, cy, cxBottom, cyBottom);
+
+											ball.transition()
+												.duration(distance / speed)
+												.ease("linear")
+												.attr("cx", cxBottom)
+												.attr("cy", cyBottom);
+
+											endTime = new Date().getTime();
+											window.clearInterval(pointsInterval);
+											hasLost = true;
+
+											/* We see if it's the best score */
+											if(points > bestScore) {
+												bestScore = points;
+												improvedScore = true;
+											}
+
+											displayInfo();
+										}
+										break;
+
+									case "left":
+										if(Math.round(Math.sin(angle) * 1000) / 1000 == 0)
+											moveBall(0);
+										else if(Math.sin(angle) > 0)
+											moveBall(180 - angle * 180 / Math.PI);
+										else
+											moveBall(270 + (270 - angle * 180 / Math.PI));
+										break;
+
+									case "right":
+										if(Math.round(Math.sin(angle) * 1000) / 1000 == 0)
+											moveBall(180);
+										else if(Math.sin(angle) > 0)
+											moveBall(180 - angle * 180 / Math.PI);
+										else
+											moveBall(270 - (angle * 180 / Math.PI - 270));
+										break;
+								}
+							});
+			};
+
+			function placeBall() {
+				newCx = Math.floor(Math.random() * (windowWidth - r)) + r;
+				newCy = Math.floor(Math.random() * windowHeight / 3) + r;
+				var distance =  getDistance(cx, cy, newCx, newCy);
+				cx = newCx;
+				cy = newCy;
+
+				ball.transition()
+					.duration(distance / speed)
+					.ease("linear")
+					.attr("cx", newCx)
+					.attr("cy", newCy);
+			}
+
+			function keyPressed(e) {
+				var x = parseFloat(board.attr("x"));
+				var step = 150;
+
+				/* Going to the left */
+				if(d3.event.keyCode == "37") {
+					event.preventDefault();
+					board.transition()
+						.ease("linear")
+						.duration(100)
+						.attr("x", (x - step > 0) ? x - step : 0);
+				}
+
+				/* Going to the right */
+				else if(d3.event.keyCode == "39") {
+					event.preventDefault();
+					board.transition()
+						.ease("linear")
+						.duration(100)
+						.attr("x", (x + boardWidth + step < windowWidth) ? x + step : windowWidth - boardWidth);
+				}
+
+				/* Replay the game */
+				else if(d3.event.keyCode == "82" && hasLost == true) {
+					event.preventDefault();
+					placeBall();
+
+					canvas.selectAll("text").transition()
+						.ease("quad-out")
+						.style("font-size", 0)
+						.remove();
+
+					canvas.select(".info").transition()
+						.ease("quad")
+						.attr("y", -parseFloat(canvas.select(".info").attr("width")))
+						.remove();
+
+					hasLost = false;
+					points = 0;
+					setTimeout(	function() {
+								startTime = new Date().getTime();
+								pointsInterval = setInterval(function() { points += 10;}, 1000);
+								moveBall(Math.random() * 360); }, 2000);
+				}
+			}
+
+			var windowWidth = window.innerWidth;
+			var windowHeight = window.innerHeight;
+
+			var canvas = d3.select("#canvas").append("svg")
+						.attr("width", windowWidth)
+						.attr("height", windowHeight)
+						.style("background-color", "#4d5d69");
+
+			var r = 20;
+			var cx = Math.floor(Math.random() * (windowWidth - r)) + r;
+			var cy = Math.floor(Math.random() * windowHeight / 3) + r;
+
+			var ball = canvas.append("circle")
+					.attr("r", r)
+					.attr("cx", cx)
+					.attr("cy", cy)
+					.style("fill", "#e31b5e");
+
+			var boardWidth = 150;
+			var boardHeight = 8;
+
+			var board = canvas.append("rect")
+						.attr("x", (windowWidth - boardWidth) /2)
+						.attr("y", windowHeight - boardHeight)
+						.attr("width", boardWidth)
+						.attr("height", boardHeight)
+						.style("fill", "#fff");
+
+			d3.select(document).on("keydown", keyPressed, false);
+
+
+			var speed = 1;
+			var hasLost = false;
+			var points = 0;
+			var bestScore = 0;
+			var improvedScore = false;
+			var pointsInterval = setInterval(function() { points += 10;}, 1000);
+			var startTime = 0;
+			var endTime = 0;
+
+			setTimeout(function() { startTime = new Date().getTime(); moveBall(Math.random() * 360); }, 2000);
+		</script>
+	</body>
+</html>
